@@ -1,0 +1,35 @@
+                ┌───────────────────────┐
+                │       User (UI)       │
+                │   OpenWebUI (chat)    │
+                └───────────▲───────────┘
+                            │
+                  REST API (OpenAI-style)
+                            │
+                ┌───────────┴───────────┐
+                │     Backend App       │
+                │    (FastAPI + RAG)    │
+                │                       │
+                │  • CrewAI Orchestration│
+                │  • LlamaIndex RAG      │
+                │  • Ollama LLM          │
+                │  • Phoenix Tracing     │
+                │                       │
+                └───────────▲───────────┘
+                            │
+                  Query (embeddings)
+                            │
+                ┌───────────┴───────────┐
+                │    Vector Store DB    │
+                │  PostgreSQL + PGVector │
+                └───────────▲───────────┘
+                            │
+                   Ingestion / Indexing
+                            │
+                ┌───────────┴───────────┐
+                │     Indexer App       │
+                │   (Docling Pipeline)  │
+                │ • PDF preprocessing   │
+                │ • Chunking            │
+                │ • Embeddings (Ollama) │
+                │ • Store in PGVector   │
+                └───────────────────────┘
