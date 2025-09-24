@@ -12,8 +12,14 @@ class DataController(BaseController):
         self.size_scale = 1048576 # convert MB to bytes
 
     def validate_uploaded_file(self, file: UploadFile):
-
-        if file.content_type not in self.app_settings.FILE_ALLOWED_TYPES:
+        # Fix: Check file extension instead of MIME type
+        if not file.filename:
+            return False, ResponseSignal.FILE_TYPE_NOT_SUPPORTED.value
+            
+        file_extension = file.filename.split('.')[-1].lower()
+        allowed_types = self.app_settings.get_allowed_types()  # Use the method from Settings
+        
+        if file_extension not in allowed_types:
             return False, ResponseSignal.FILE_TYPE_NOT_SUPPORTED.value
 
         if file.size > self.app_settings.FILE_MAX_SIZE * self.size_scale:

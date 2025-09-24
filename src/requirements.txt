@@ -4,5 +4,7 @@ python-multipart==0.0.20
 python-dotenv==1.0.1
 pydantic-settings==2.10.1
 aiofiles==23.2.1
-
-
+llama-index==0.14.2
+llama-index-vector-stores-postgres==0.13.0
+llama-index-llms-ollama==0.7.3
+llama-index-embeddings-ollama==0.8.3 
