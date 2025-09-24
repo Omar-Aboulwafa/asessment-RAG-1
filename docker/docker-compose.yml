@@ -1,14 +1,13 @@
+# docker-compose.yml
 
 services:
-  
-
   # PostgreSQL (pgvector)
   pgvector:
     image: pgvector/pgvector:0.8.0-pg17
     container_name: pgvector
     ports:
       - "5400:5432"
-    volumes:
+    volumes: 
       - pgvector:/var/lib/postgresql/data
     env_file:
       - ./env/.env.postgres
@@ -22,10 +21,24 @@ services:
       retries: 5
       start_period: 10s
 
+  # OpenWebUI Service
+  # THIS BLOCK WAS MOVED TO THE LEFT
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main-slim
+    ports:
+      - "3000:8080"
+    networks: # Added network so it can communicate with other services if needed
+      - backend
+    volumes:
+      - open-webui:/app/backend/data
+  
+
+# NETWORKS is a top-level key, at the same level as 'services'
 networks:
   backend:
     driver: bridge
 
+# VOLUMES is a top-level key, at the same level as 'services' and 'networks'
 volumes:
-  fastapi_data:
   pgvector:
+  open-webui:

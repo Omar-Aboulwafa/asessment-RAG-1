@@ -6,19 +6,20 @@ class Settings(BaseSettings):
 
     APP_NAME: str
     APP_VERSION: str
-    
-    FILE_ALLOWED_TYPES: str = "pdf,docx,txt"  # Changed to str
+
+    FILE_ALLOWED_TYPES: str = "pdf,docx,txt"
     FILE_MAX_SIZE: int
     FILE_DEFAULT_CHUNK_SIZE: int
-    
-    DB_CONNECTION_STRING: str = "postgresql://admin:admin@localhost:5400/rag"
-    OLLAMA_BASE_URL: str = "http://localhost:11434"
-    DEFAULT_LLM_MODEL: str = "qwen3:0.6b-q4_K_M"
-    DEFAULT_EMBEDDING_MODEL: str = "mxbai-embed-large:latest"
-    
+
+    DB_CONNECTION_STRING: str
+    OLLAMA_BASE_URL: str
+    DEFAULT_LLM_MODEL: str
+    DEFAULT_EMBEDDING_MODEL: str
+
+    PHOENIX_COLLECTOR_ENDPOINT: str
+
     def get_allowed_types(self) -> List[str]:
-        """Get file types as a list"""
         return [ext.strip().lower() for ext in self.FILE_ALLOWED_TYPES.split(',')]
 
-def get_settings():
+def get_settings() -> Settings:
     return Settings()

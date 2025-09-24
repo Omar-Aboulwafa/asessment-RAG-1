@@ -8,3 +8,7 @@ llama-index==0.14.2
 llama-index-vector-stores-postgres==0.13.0
 llama-index-llms-ollama==0.7.3
 llama-index-embeddings-ollama==0.8.3 
+crewai[tools]==0.193.2
+arize-phoenix-otel==0.13.1
+openinference_instrumentation_crewai==0.1.13
+openinference-instrumentation-litellm==0.1.25

@@ -2,11 +2,11 @@ from fastapi import FastAPI, APIRouter, Depends, UploadFile, status
 from fastapi.responses import JSONResponse
 import os
 from helpers.config import get_settings, Settings
-from controllers import DataController, ProjectController, ProcessController
+from controllers import DataController, ProjectController, ProcessController, QueryController
 import aiofiles
 from models import ResponseSignal
 import logging
-from .schemes.data import ProcessRequest
+from .schemes.data import ProcessRequest, QueryRequest
 
 logger = logging.getLogger('uvicorn.error')
 
@@ -87,3 +87,12 @@ async def process_endpoint(project_id: str, process_request: ProcessRequest):
             "message": "Document processed and stored successfully"
         }
     )
+
+
+
+@data_router.post("/query/{project_id}")
+async def query_documents(project_id: str, query_request: QueryRequest):
+    query_controller = QueryController(project_id=project_id)
+    result = query_controller.query(query_request.query)
+    
+    return JSONResponse(content=result)

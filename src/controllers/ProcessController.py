@@ -2,18 +2,18 @@ from .BaseController import BaseController
 from .ProjectController import ProjectController
 from llama_index.readers.docling import DoclingReader
 from llama_index.node_parser.docling import DoclingNodeParser
-from llama_index.core import Document
+from llama_index.core import Document, VectorStoreIndex, StorageContext
 from llama_index.llms.ollama import Ollama
 from llama_index.core.schema import BaseNode
 import os
 from typing import List, Optional
 import psycopg2
 import json
-from llama_index.core import SimpleDirectoryReader, StorageContext
 from llama_index.vector_stores.postgres import PGVectorStore
 import textwrap
 from llama_index.embeddings.ollama import OllamaEmbedding
 from contextlib import contextmanager
+from sqlalchemy import make_url
 
 
 class ProcessController(BaseController):
@@ -25,9 +25,52 @@ class ProcessController(BaseController):
         self.reader = DoclingReader(export_type=DoclingReader.ExportType.JSON, keep_image=False)
         self.default_llm_model = default_llm_model
         self._llm = None  # Lazy initialization
+        self._vector_store = None
+        self._index = None
 
     @property
-    def llm(self) -> Ollama:
+    def vector_store(self) -> PGVectorStore:
+        """Lazy initialization of PGVectorStore"""
+        if self._vector_store is None:
+            url = make_url(self.app_settings.DB_CONNECTION_STRING)
+            self._vector_store = PGVectorStore.from_params(
+                database="rag",
+                host=url.host,
+                password=url.password,
+                port=url.port,
+                user=url.username,
+                table_name=f"document_chunks_project_{self.project_id}",  # Project-specific table
+                embed_dim=1024,
+                hybrid_search=True,
+                hnsw_kwargs={
+                    "hnsw_m": 16,
+                    "hnsw_ef_construction": 64,
+                    "hnsw_ef_search": 40,
+                    "hnsw_dist_method": "vector_cosine_ops",
+                },
+            )
+        return self._vector_store
+
+    @property
+    def index(self) -> VectorStoreIndex:
+        """Get or create VectorStoreIndex"""
+        if self._index is None:
+            storage_context = StorageContext.from_defaults(vector_store=self.vector_store)
+            
+            # Try to load existing index first
+            try:
+                self._index = VectorStoreIndex.from_vector_store(
+                    vector_store=self.vector_store,
+                    storage_context=storage_context
+                )
+                self.logger.info(f"Loaded existing index for project {self.project_id}")
+            except Exception as e:
+                self.logger.warning(f"Could not load existing index: {e}")
+                # Create new empty index
+                self._index = VectorStoreIndex([], storage_context=storage_context)
+                self.logger.info(f"Created new index for project {self.project_id}")
+                
+        return self._index
         """Lazy initialization of LLM"""
         if self._llm is None:
             self._llm = self.initialize_ollama_llm(self.default_llm_model)
@@ -108,8 +151,8 @@ class ProcessController(BaseController):
             self.logger.warning("No nodes provided for context generation.")
             return []
         
-        # Use specified model or default
-        llm_instance = self.llm if llm_model_name is None else self.initialize_ollama_llm(llm_model_name)
+        
+        
         
         for i, node in enumerate(nodes):
             if i % 10 == 0:
@@ -201,6 +244,59 @@ Context summary:"""
         except Exception as e:
             self.logger.error(f"Error embedding and storing chunks: {e}")
             return False
+
+    def get_file_content(self, file_id: str) -> bytes:
+        """
+        Read file content from the project directory.
+        Returns file content as bytes.
+        """
+        file_path = os.path.join(self.project_path, file_id)
+        if not os.path.exists(file_path):
+            self.logger.error(f"File not found: {file_path}")
+            raise FileNotFoundError(f"File {file_id} not found in project {self.project_id}")
+
+        try:
+            with open(file_path, 'rb') as file:
+                content = file.read()
+            self.logger.info(f"Read {len(content)} bytes from file '{file_id}'")
+            return content
+        except Exception as e:
+            self.logger.error(f"Error reading file {file_id}: {e}")
+            raise
+
+    def process_file_content(self, file_content: bytes, file_id: str, chunk_size: int, overlap_size: int) -> List[dict]:
+        """
+        Process file content and return chunks (for direct API response).
+        This is different from the embedding pipeline - just returns chunk data.
+        """
+        try:
+            
+            documents = self.load_documents(file_id)
+            if not documents:
+                return []
+
+            # Chunk documents  
+            nodes = self.chunk_documents(documents)
+            if not nodes:
+                return []
+
+            # Convert nodes to dict format for API response
+            chunks = []
+            for i, node in enumerate(nodes):
+                chunks.append({
+                    "chunk_id": i,
+                    "content": node.get_content(),
+                    "metadata": node.metadata,
+                    "project_id": self.project_id,
+                    "source_file": file_id
+                })
+            
+            self.logger.info(f"Processed file {file_id} into {len(chunks)} chunks")
+            return chunks
+            
+        except Exception as e:
+            self.logger.error(f"Error processing file content: {e}")
+            return []
 
     def process_document_pipeline(self, file_id: str, generate_context: bool = True) -> bool:
         """
